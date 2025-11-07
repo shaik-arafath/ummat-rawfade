@@ -1,0 +1,43 @@
+name: 🚀 Auto Deploy to VPS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Deploy to VPS
+        run: |
+          ssh -o StrictHostKeyChecking=no root@89.116.20.32 << 'EOF'
+            cd /root
+            if [ ! -d "ummat-rawfade" ]; then
+              git clone https://github.com/shaik-arafath/ummat-rawfade.git
+            fi
+            cd ummat-rawfade
+            git pull origin main
+
+            # Install Docker if not installed
+            if ! command -v docker &> /dev/null
+            then
+              apt update -y
+              apt install -y docker.io docker-compose
+            fi
+
+            # Build and run the app
+            docker compose down || true
+            docker compose up -d --build
+
+            echo "✅ Deployment completed successfully!"
+          EOF
