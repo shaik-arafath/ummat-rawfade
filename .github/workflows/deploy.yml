@@ -1,0 +1,44 @@
+name: 🚀 Auto Deploy to VPS
+
+on:
+  push:
+    branches:
+      - main   # deploys automatically when you push to main branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 🧩 Checkout repository
+        uses: actions/checkout@v3
+
+      - name: 🔐 Setup SSH for VPS
+        uses: webfactory/ssh-agent@v0.7.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: 🚀 Deploy to VPS
+        run: |
+          ssh -o StrictHostKeyChecking=no root@89.116.20.32 << 'EOF'
+            cd /root/rawfade || mkdir -p /root/rawfade
+            cd /root/rawfade
+
+            echo "📥 Updating code..."
+            if [ -d .git ]; then
+              git pull origin main
+            else
+              git clone https://github.com/shaik-arafath/ummat-rawfade.git .
+            fi
+
+            echo "🛠️ Building Java app..."
+            ./mvnw clean package -DskipTests
+
+            echo "🧹 Stopping old app..."
+            pkill -f 'java -jar' || true
+
+            echo "🚀 Starting new app..."
+            nohup java -jar target/*.jar > app.log 2>&1 &
+
+            echo "✅ Deployment done successfully!"
+          EOF
